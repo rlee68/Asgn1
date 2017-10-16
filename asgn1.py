@@ -6,12 +6,15 @@ from vtk import *
 import sys
 import math
 
+#Check if there is a specified pdb file
 def checkArgs():
 	if len(sys.argv) == 2:
 		return sys.argv[-1]
 	else:
 		sys.exit("Enter a pdb file name.")
 
+
+#Gets the resolution for the atoms and bonds
 def getResolution(pdb):
 	res = math.sqrt(300000.0/pdb.GetNumberOfAtoms())
 	if res > 20:
@@ -20,6 +23,8 @@ def getResolution(pdb):
 		res = 4
 	return res
 
+
+#Renders the atoms of the molecule
 def drawAtoms(pdb, res):
 	#Represent the atoms as spheres
 	sphere = vtkSphereSource()
@@ -44,6 +49,8 @@ def drawAtoms(pdb, res):
 	atom.SetMapper(atomMapper)
 	return atom
 
+
+#Renders the bonds of the molecule
 def drawBonds(pdb, res):
 	#Represent the bonds as tube
 	tube = vtkTubeFilter()
@@ -60,8 +67,9 @@ def drawBonds(pdb, res):
 	bond.SetMapper(bondMapper)
 	return bond
 
+
+#Creates left render (molecule image)
 def leftViewport(renderWindow):
-	#Create left render (molecule image)
 	leftR = vtkRenderer()
 	renderWindow.AddRenderer(leftR)
 	leftR.SetViewport(0, 0, 0.5, 1)
@@ -69,15 +77,23 @@ def leftViewport(renderWindow):
 	leftR.ResetCamera()
 	return leftR
 
-def rightViewport(renderWindow):
-	#Create right render (amino acid composition)
-	rightR = vtkRenderer()
+
+#Creates right render (amino acid composition)
+def rightViewport(pdb, renderWindow):
+	view = vtkContextView()
+	rightR = view.GetRenderer()
 	renderWindow.AddRenderer(rightR)
 	rightR.SetViewport(0.5, 0, 1, 1)
 	rightR.SetBackground(0.5, 0.5, 0.5)
 	rightR.ResetCamera()
-	return rightR
 
+	chart = vtkChartXY()
+	view.GetScene().AddItem(chart)
+
+	table = vtkTable()
+
+
+#Executes the molecule viewer 
 def main():
 	#Check for a pdb file name
 	file = checkArgs()
@@ -91,26 +107,24 @@ def main():
 	atom = drawAtoms(pdb, res)
 	bond = drawBonds(pdb, res)
 
-	#Create a camera
-	camera = vtkCamera()
-	camera.SetPosition(0, 0, 150)
-	camera.SetFocalPoint(0, 0, 0)
-
 	#Create main render window and interactor
 	renderWindow = vtkRenderWindow()
 	renderWindow.SetSize(2560, 1440)
 	renderWindowInteractor = vtkRenderWindowInteractor()
+	trackball = vtkInteractorStyleTrackballCamera()
+	renderWindowInteractor.SetInteractorStyle(trackball)
 	renderWindowInteractor.SetRenderWindow(renderWindow)
 
 	#Create left and right renders
 	left = leftViewport(renderWindow)
 	left.AddActor(bond)
-	right = rightViewport(renderWindow)
-	right.AddActor(atom)
+	right = rightViewport(pdb, renderWindow)
 
+	renderWindow.SetMultiSamples(0)
 	renderWindow.Render()
 	renderWindow.SetWindowName('Molecule Viewer: %s' % file)
 	renderWindowInteractor.Start()
+
 
 if __name__ == "__main__":
     main()
