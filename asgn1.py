@@ -60,14 +60,31 @@ def drawBonds(pdb, res):
 	bond.SetMapper(bondMapper)
 	return bond
 
+def leftViewport(renderWindow):
+	#Create left render (molecule image)
+	leftR = vtkRenderer()
+	renderWindow.AddRenderer(leftR)
+	leftR.SetViewport(0, 0, 0.5, 1)
+	leftR.SetBackground(1, 1, 1)
+	leftR.ResetCamera()
+	return leftR
+
+def rightViewport(renderWindow):
+	#Create right render (amino acid composition)
+	rightR = vtkRenderer()
+	renderWindow.AddRenderer(rightR)
+	rightR.SetViewport(0.5, 0, 1, 1)
+	rightR.SetBackground(0.5, 0.5, 0.5)
+	rightR.ResetCamera()
+	return rightR
+
 def main():
 	#Check for a pdb file name
 	file = checkArgs()
 	pdb = vtkPDBReader()
 	pdb.SetFileName(file)
-	pdb.SetHBScale(1)
-	pdb.SetBScale(1)
-	print(pdb.GetNumberOfAtoms())
+	#pdb.SetHBScale(1)
+	#pdb.SetBScale(1)
 	pdb.Update()
 
 	res = getResolution(pdb)
@@ -79,22 +96,20 @@ def main():
 	camera.SetPosition(0, 0, 150)
 	camera.SetFocalPoint(0, 0, 0)
 
-	#Create a renderer, render window, and interactor
-	renderer = vtkRenderer()
-	renderer.SetActiveCamera(camera)
+	#Create main render window and interactor
 	renderWindow = vtkRenderWindow()
-	renderWindow.AddRenderer(renderer)
 	renderWindow.SetSize(2560, 1440)
 	renderWindowInteractor = vtkRenderWindowInteractor()
 	renderWindowInteractor.SetRenderWindow(renderWindow)
 
-	#Add the actor to the scene
-	renderer.AddActor(atom)
-	renderer.AddActor(bond)
-	renderer.SetBackground(1, 1, 1)
+	#Create left and right renders
+	left = leftViewport(renderWindow)
+	left.AddActor(bond)
+	right = rightViewport(renderWindow)
+	right.AddActor(atom)
 
-	#Render and interact
 	renderWindow.Render()
+	renderWindow.SetWindowName('Molecule Viewer: %s' % file)
 	renderWindowInteractor.Start()
 
 if __name__ == "__main__":
