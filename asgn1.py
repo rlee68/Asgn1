@@ -3,6 +3,8 @@
 # Assignment 1
 
 from vtk import *
+from Bio import SeqIO
+from StringIO import StringIO
 import sys
 import math
 
@@ -56,7 +58,7 @@ def drawBonds(pdb, res):
 	tube = vtkTubeFilter()
 	tube.SetInputConnection(pdb.GetOutputPort())
 	tube.SetNumberOfSides(int(res))
-	tube.SetRadius(0.1)
+	tube.SetRadius(0.15)
 	tube.SetVaryRadius(0)
 	tube.SetRadiusFactor(10)
 
@@ -67,30 +69,77 @@ def drawBonds(pdb, res):
 	bond.SetMapper(bondMapper)
 	return bond
 
+def getAminoAcids(file):
+	records = SeqIO.parse(file, "pdb-seqres")
+	output = StringIO()
+	SeqIO.write(records, output, "fasta")
+	aaData = output.getvalue()
+
+	aaCount = [0] * 20
+	aaName = ['A', 'C', 'E', 'D', 'G', 'F', 'I', 'H', 'K', 'M', 'L', 'N', 'Q', 'P', 'S', 'R', 'T', 'W', 'V', 'Y']
+
+	total = 0
+	count = 0
+	seq = False
+	for amino in aaData:
+		if amino == '\n':
+			seq = True
+		if seq:
+			total += 1
+			for i in aaName:
+				if i == amino:
+					aaCount[count] += 1
+				count += 1
+			count = 0
+	print total
+
+	return aaCount
 
 #Creates left render (molecule image)
 def leftViewport(renderWindow):
 	leftR = vtkRenderer()
 	renderWindow.AddRenderer(leftR)
 	leftR.SetViewport(0, 0, 0.5, 1)
-	leftR.SetBackground(1, 1, 1)
+	leftR.SetBackground(0, 0, 0)
 	leftR.ResetCamera()
 	return leftR
 
 
 #Creates right render (amino acid composition)
-def rightViewport(pdb, renderWindow):
+def rightViewport(file, renderWindow):
+	aaCount = getAminoAcids(file)
+
 	view = vtkContextView()
 	rightR = view.GetRenderer()
 	renderWindow.AddRenderer(rightR)
 	rightR.SetViewport(0.5, 0, 1, 1)
-	rightR.SetBackground(0.5, 0.5, 0.5)
+	rightR.SetBackground(1, 1, 1)
 	rightR.ResetCamera()
 
 	chart = vtkChartXY()
 	view.GetScene().AddItem(chart)
+	chart.SetShowLegend(True)
+	chart.AutoAxesOff()
 
 	table = vtkTable()
+	arrMonth = vtkIntArray()
+	arrMonth.SetName("Amino Acid")
+	table.AddColumn(arrMonth)
+
+	aa = vtkIntArray()
+	aa.SetName("Amino Acid Count")
+	table.AddColumn(aa)
+
+	table.SetNumberOfRows(20)
+	for i in range(0, 20):
+		table.SetValue(i, 0, i + 1)
+		table.SetValue(i, 1, aaCount[i])
+
+	line = chart.AddPlot(2)
+	line.SetInputData(table, 0, 1)
+	line.SetColor(0, 255, 0, 255)
+
+	return rightR
 
 
 #Executes the molecule viewer 
@@ -118,7 +167,7 @@ def main():
 	#Create left and right renders
 	left = leftViewport(renderWindow)
 	left.AddActor(bond)
-	right = rightViewport(pdb, renderWindow)
+	right = rightViewport(file, renderWindow)
 
 	renderWindow.SetMultiSamples(0)
 	renderWindow.Render()
